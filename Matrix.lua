@@ -70,7 +70,7 @@ function TMatrixMT:__mul(Matrix)
 			for x = 1, #self[1] do
 				local xOffset = math.min(x + 1, #self[1]) - 1
 				local yOffset = math.min(y + 1, #self) - 1
-				
+
 				Matrix2[y][x] = Matrix[yOffset][x] * self[y][xOffset] + Matrix[yOffset + 1][x] * self[y][xOffset + 1]
 			end
 		end
@@ -124,7 +124,7 @@ function TMatrix.new(Dimension, ...)
 		for i = 1, Dimension do
 			VectorDim[i] = 0
 		end
-		
+
 		for i = 1, Dimension do
 			Matrix[i] = Vector(unpack(VectorDim))
 		end
@@ -165,14 +165,14 @@ function TMatrix:Stagger(Operations)
 	for i = 1, #self do
 		Stagger[i] = Vector(unpack(self[i]))
 	end
-	
+
 	if self.Extended then
 		Stagger.Extended = TMatrix.new(1)
 		for i = 1, #self.Extended do
 			Stagger.Extended[i] = Vector(unpack(self.Extended[i]))
 		end
 	end
-	
+
 	local Operations = Operations or {}
 
 	for NullNumber = #Stagger, 1, -1 do
@@ -183,19 +183,19 @@ function TMatrix:Stagger(Operations)
 					local Vector = Stagger[i]
 					Stagger[i] = Stagger[NullNumber]
 					Stagger[NullNumber] = Vector
-					
+
 					if Stagger.Extended then
 						local ExtendedVector = Stagger.Extended[i]
 						Stagger.Extended[i] = Stagger.Extended[NullNumber]
 						Stagger.Extended[NullNumber] = ExtendedVector
 					end
-					
+
 					break
 				end
 			end
 		end
 	end
-	
+
 	for i = 1, #Stagger do
 		if Stagger[i][i] ~= 0 and Stagger[i][i] ~= 1 and Stagger[i][i] then
 			local Divisor = Stagger[i][i]
@@ -203,14 +203,14 @@ function TMatrix:Stagger(Operations)
 				Divisor = Divisor:tostring()
 			end
 			table.insert(Operations, "L"..i.."(1/"..Divisor..")")
-			
+
 			if Stagger.Extended then
 				Stagger.Extended[i] = Stagger.Extended[i] / Stagger[i][i]
 			end
 			Stagger[i] = Stagger[i] / Stagger[i][i]
 		end
 	end
-	
+
 	for x = 1, #Stagger do
 		for y = 1, #Stagger do
 			if Stagger[y][x] ~= 0 and Stagger[y][x] and Stagger[x][x] == 1 and x ~= y then
@@ -222,14 +222,48 @@ function TMatrix:Stagger(Operations)
 			end
 		end
 	end
-	
+
 	for i = 1, #Stagger do
 		if Stagger[i][i] ~= 0 and Stagger[i][i] ~= 1 and Stagger[i][i] then
 			return Stagger:Stagger(Operations)
 		end
 	end
-	
+
 	return Stagger, Operations
+end
+
+function TMatrix:Determinant()
+	if #self ~= #self[1] then
+		return 0
+	elseif #self == 2 then
+		return self[1][1] * self[2][2] - self[1][2] * self[2][1]
+	end
+
+	local Determinant = 0
+	local Sign = 1
+	for i = 1, #self do
+		local Matrix = TMatrix.new(0)
+		local yCount = 0
+		for y = 1, #self do
+			if y ~= i then
+				yCount = yCount + 1
+				local MatrixPoints = {}
+				for x = 2, #self do
+					table.insert(MatrixPoints, self[y][x])
+				end
+				Matrix[yCount] = Vector(unpack(MatrixPoints))
+			end
+		end
+		Determinant = Determinant + Sign * self[i][1] * Matrix:Determinant()
+		Sign = -Sign
+	end
+
+	return Determinant
+end
+
+function TMatrix:IsInvertible()
+	local Determinant = self:Determinant()
+	return Determinant ~= 0 and math.abs(Determinant) ~= 1/0
 end
 
 function TMatrix:Inverse(Operations, Inverse)
@@ -237,13 +271,13 @@ function TMatrix:Inverse(Operations, Inverse)
 	for i = 1, #self do
 		Stagger[i] = Vector(unpack(self[i]))
 	end
-	
+
 	if not Inverse then
 		Inverse = TMatrix.Identity(#Stagger)
 	end
-	
+
 	local Operations = Operations or {}
-	
+
 	for NullNumber = #Stagger, 1, -1 do
 		if Stagger[NullNumber][NullNumber] == 0 then
 			for i = #Stagger, 1, -1 do
@@ -252,7 +286,7 @@ function TMatrix:Inverse(Operations, Inverse)
 					local Vector = Stagger[i]
 					Stagger[i] = Stagger[NullNumber]
 					Stagger[NullNumber] = Vector
-					
+
 					local InverseVector = Inverse[i]
 					Inverse[i] = Inverse[NullNumber]
 					Inverse[NullNumber] = InverseVector
@@ -261,7 +295,7 @@ function TMatrix:Inverse(Operations, Inverse)
 			end
 		end
 	end
-	
+
 	for i = 1, #Stagger do
 		if Stagger[i][i] ~= 0 and Stagger[i][i] ~= 1 and Stagger[i][i] then
 			table.insert(Operations, "L"..i.."(1/"..Stagger[i][i]..")")
@@ -269,7 +303,7 @@ function TMatrix:Inverse(Operations, Inverse)
 			Stagger[i] = Stagger[i] / Stagger[i][i]
 		end
 	end
-	
+
 	for x = 1, #Stagger do
 		for y = 1, #Stagger do
 			if Stagger[y][x] ~= 0 and Stagger[y][x] and Stagger[x][x] == 1 and x ~= y then
@@ -279,13 +313,13 @@ function TMatrix:Inverse(Operations, Inverse)
 			end
 		end
 	end
-	
+
 	for i = 1, #Stagger do
 		if Stagger[i][i] ~= 0 and Stagger[i][i] ~= 1 and Stagger[i][i] then
 			return Stagger:Inverse(Operations, Inverse)
 		end
 	end
-	
+
 	return Inverse, Operations
 end
 
